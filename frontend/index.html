@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4-Digit Number Guessing Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Welcome Screen -->
+        <div id="welcomeScreen" class="screen active">
+            <div class="card">
+                <h1>🎯 4-Digit Number Game</h1>
+                <p class="subtitle">Guess your opponent's 4-digit secret number!</p>
+                
+                <div class="rules-box">
+                    <h3>Game Rules:</h3>
+                    <ul>
+                        <li>Each player chooses a 4-digit number with unique digits</li>
+                        <li>Take turns guessing the opponent's number</li>
+                        <li>Get feedback: correct digits & correct positions</li>
+                        <li>First to guess correctly wins!</li>
+                    </ul>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="showCreateSession()">
+                        Create New Session
+                    </button>
+                    <button class="btn btn-secondary" onclick="showJoinSession()">
+                        Join Existing Session
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Session Screen -->
+        <div id="createScreen" class="screen">
+            <div class="card">
+                <h2>Create New Session</h2>
+                <p class="subtitle">Enter your name to create a game session</p>
+                
+                <div class="form-group">
+                    <label for="createPlayerName">Your Name</label>
+                    <input 
+                        type="text" 
+                        id="createPlayerName" 
+                        placeholder="Enter your name"
+                        maxlength="20"
+                    />
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="createSession()">
+                        Create Session
+                    </button>
+                    <button class="btn btn-secondary" onclick="showWelcome()">
+                        Back
+                    </button>
+                </div>
+                
+                <div id="createError" class="error-message"></div>
+            </div>
+        </div>
+
+        <!-- Join Session Screen -->
+        <div id="joinScreen" class="screen">
+            <div class="card">
+                <h2>Join Session</h2>
+                <p class="subtitle">Enter session ID and your name</p>
+                
+                <div class="form-group">
+                    <label for="sessionId">Session ID</label>
+                    <input 
+                        type="text" 
+                        id="sessionId" 
+                        placeholder="Enter session ID"
+                        maxlength="8"
+                    />
+                </div>
+                
+                <div class="form-group">
+                    <label for="joinPlayerName">Your Name</label>
+                    <input 
+                        type="text" 
+                        id="joinPlayerName" 
+                        placeholder="Enter your name"
+                        maxlength="20"
+                    />
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="joinSession()">
+                        Join Session
+                    </button>
+                    <button class="btn btn-secondary" onclick="showWelcome()">
+                        Back
+                    </button>
+                </div>
+                
+                <div id="joinError" class="error-message"></div>
+            </div>
+        </div>
+
+        <!-- Lobby Screen -->
+        <div id="lobbyScreen" class="screen">
+            <div class="card">
+                <h2>Game Lobby</h2>
+                
+                <div class="session-info">
+                    <div class="info-item">
+                        <span class="label">Session ID:</span>
+                        <span id="lobbySessionId" class="session-id"></span>
+                        <button class="btn-copy" onclick="copySessionId()">📋 Copy</button>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">Status:</span>
+                        <span id="lobbyStatus" class="status-badge">Waiting</span>
+                    </div>
+                </div>
+                
+                <div class="players-section">
+                    <h3>Players (<span id="playerCount">0</span>/2)</h3>
+                    <div id="playersList" class="players-list"></div>
+                </div>
+                
+                <div class="waiting-message" id="waitingMessage">
+                    <div class="spinner"></div>
+                    <p>Waiting for another player to join...</p>
+                    <p class="share-text">Share the Session ID with your friend!</p>
+                </div>
+                
+                <div class="button-group">
+                    <button 
+                        id="readyToPlayBtn" 
+                        class="btn btn-primary" 
+                        onclick="showNumberSelection()"
+                        disabled
+                    >
+                        Ready to Play
+                    </button>
+                    <button class="btn btn-danger" onclick="leaveSession()">
+                        Leave Session
+                    </button>
+                </div>
+                
+                <div id="lobbyError" class="error-message"></div>
+            </div>
+        </div>
+
+        <!-- Number Selection Screen -->
+        <div id="numberSelectionScreen" class="screen">
+            <div class="card">
+                <h2>🔐 Choose Your Secret Number</h2>
+                <p class="subtitle">Enter a 4-digit number with unique digits</p>
+                
+                <div class="number-input-section">
+                    <div class="digit-inputs">
+                        <input type="text" class="digit-input" id="digit1" maxlength="1" onkeyup="moveToNext(this, 'digit2')" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                        <input type="text" class="digit-input" id="digit2" maxlength="1" onkeyup="moveToNext(this, 'digit3')" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                        <input type="text" class="digit-input" id="digit3" maxlength="1" onkeyup="moveToNext(this, 'digit4')" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                        <input type="text" class="digit-input" id="digit4" maxlength="1" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                    </div>
+                    <p class="hint-text">⚠️ All digits must be different!</p>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="lockNumber()">
+                        🔒 Lock Number
+                    </button>
+                </div>
+                
+                <div id="numberError" class="error-message"></div>
+                
+                <div class="waiting-box" id="waitingForOpponent" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Waiting for opponent to lock their number...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="screen">
+            <div class="card game-card">
+                <div class="game-header">
+                    <h2>🎯 Guess the Number!</h2>
+                    <div class="session-id-small">
+                        Session: <span id="gameSessionId"></span>
+                    </div>
+                </div>
+                
+                <div class="turn-indicator" id="turnIndicator">
+                    <span id="turnText">Your Turn!</span>
+                </div>
+                
+                <div class="game-stats">
+                    <div class="stat-box">
+                        <div class="stat-label">Your Guesses</div>
+                        <div class="stat-value" id="yourGuessCount">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Opponent's Guesses</div>
+                        <div class="stat-value" id="opponentGuessCount">0</div>
+                    </div>
+                </div>
+                
+                <div class="guess-input-section" id="guessInputSection">
+                    <h3>Make Your Guess</h3>
+                    <div class="digit-inputs">
+                        <input type="text" class="digit-input" id="guess1" maxlength="1" onkeyup="moveToNext(this, 'guess2')" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                        <input type="text" class="digit-input" id="guess2" maxlength="1" onkeyup="moveToNext(this, 'guess3')" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                        <input type="text" class="digit-input" id="guess3" maxlength="1" onkeyup="moveToNext(this, 'guess4')" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                        <input type="text" class="digit-input" id="guess4" maxlength="1" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                    </div>
+                    <button class="btn btn-primary" onclick="makeGuess()">Submit Guess</button>
+                </div>
+                
+                <div class="game-history">
+                    <div class="history-column">
+                        <h3>Your Guesses</h3>
+                        <div id="yourGuesses" class="guess-list"></div>
+                    </div>
+                    <div class="history-column">
+                        <h3>Opponent's Guesses</h3>
+                        <div id="opponentGuesses" class="guess-list"></div>
+                    </div>
+                </div>
+                
+                <div id="gameError" class="error-message"></div>
+                
+                <button class="btn btn-danger btn-small" onclick="leaveSession()">
+                    Leave Game
+                </button>
+            </div>
+        </div>
+
+        <!-- Winner Screen -->
+        <div id="winnerScreen" class="screen">
+            <div class="card">
+                <div class="winner-content">
+                    <h1 id="winnerTitle">🏆</h1>
+                    <p id="winnerMessage" class="winner-message"></p>
+                    <div id="finalStats" class="final-stats"></div>
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="showWelcome()">
+                        New Game
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
