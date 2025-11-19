@@ -1,12 +1,10 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import Dict, List, Optional
 import uuid
 import json
 from datetime import datetime
+import uvicorn
 
 app = FastAPI(title="Game Session Manager")
 
@@ -316,5 +314,4 @@ async def broadcast_to_session(session_id: str, message: dict):
             del active_connections[session_id][player_id]
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
