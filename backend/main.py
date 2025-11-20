@@ -6,6 +6,8 @@ import uuid
 import json
 from datetime import datetime
 
+import uvicorn
+
 
 app = FastAPI(title="Game Session Manager")
 
