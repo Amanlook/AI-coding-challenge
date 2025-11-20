@@ -1,10 +1,11 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Dict, List
 import uuid
 import json
 from datetime import datetime
-import uvicorn
+
 
 app = FastAPI(title="Game Session Manager")
 
