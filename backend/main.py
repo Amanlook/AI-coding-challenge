@@ -1,320 +1,256 @@
+"""
+Game Session Manager API
+A real-time 4-digit number guessing game backend.
+"""
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Dict, List
-import uuid
 import json
-from datetime import datetime
 
-import uvicorn
+from config import (
+    CORS_ORIGINS, CORS_METHODS, CORS_HEADERS,
+    WS_SESSION_FULL, WS_SESSION_NOT_FOUND,
+    GameStatus, MessageType, HOST, PORT
+)
+from models import Guess
+from game_logic import validate_number, evaluate_guess, is_winning_guess
+from session_manager import session_manager
+from utils import sanitize_player, sanitize_session
 
 
-app = FastAPI(title="Game Session Manager")
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+# Initialize FastAPI app
+app = FastAPI(
+    title="Game Session Manager",
+    description="Real-time 4-digit number guessing game API",
+    version="1.0.0"
 )
 
-# Data models
-class Player(BaseModel):
-    id: str
-    name: str
-    joined_at: str
-    secret_number: str = ""  # 4-digit secret number
-    is_ready: bool = False  # Has locked their number
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=CORS_METHODS,
+    allow_headers=CORS_HEADERS,
+)
 
-class Guess(BaseModel):
-    player_id: str
-    player_name: str
-    guess: str
-    correct_digits: int  # Digits that exist in secret number
-    correct_positions: int  # Digits in correct position
-    timestamp: str
-
-class GameSession(BaseModel):
-    session_id: str
-    created_at: str
-    players: List[Player]
-    max_players: int = 2
-    status: str  # "waiting", "ready", "choosing_numbers", "in_progress", "completed"
-    current_turn: str = ""  # player_id whose turn it is
-    guesses: List[Guess] = []
-    winner: str = ""  # player_id of winner
-
-# In-memory storage
-sessions: Dict[str, GameSession] = {}
-active_connections: Dict[str, Dict[str, WebSocket]] = {}  # session_id -> {player_id -> websocket}
 
 # REST Endpoints
 @app.get("/")
 async def root():
-    return {"message": "Game Session Manager API"}
+    """Health check endpoint."""
+    return {"message": "Game Session Manager API", "status": "running"}
+
 
 @app.post("/sessions/create")
 async def create_session():
-    """Create a new game session"""
-    session_id = str(uuid.uuid4())[:8]  # Short unique ID
-    
-    session = GameSession(
-        session_id=session_id,
-        created_at=datetime.now().isoformat(),
-        players=[],
-        status="waiting"
-    )
-    
-    sessions[session_id] = session
-    active_connections[session_id] = {}
-    
+    """Create a new game session."""
+    session = session_manager.create_session()
     return {
-        "session_id": session_id,
+        "session_id": session.session_id,
         "message": "Session created successfully"
     }
 
+
 @app.get("/sessions/{session_id}")
 async def get_session(session_id: str):
-    """Get session details"""
-    if session_id not in sessions:
+    """Get session details."""
+    session = session_manager.get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    return sessions[session_id]
+    return session
+
 
 @app.get("/sessions")
 async def list_sessions():
-    """List all active sessions"""
-    return {"sessions": list(sessions.values())}
+    """List all active sessions."""
+    return {"sessions": session_manager.get_all_sessions()}
 
-# WebSocket endpoint
+
+# WebSocket Endpoint
 @app.websocket("/ws/{session_id}/{player_name}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str, player_name: str):
-    """WebSocket connection for real-time game session updates"""
+    """WebSocket connection for real-time game session updates."""
     
-    # Check if session exists
-    if session_id not in sessions:
-        await websocket.close(code=4004, reason="Session not found")
+    # Validate session exists
+    session = session_manager.get_session(session_id)
+    if not session:
+        await websocket.close(code=WS_SESSION_NOT_FOUND, reason="Session not found")
         return
-    
-    session = sessions[session_id]
     
     # Check if session is full
-    if len(session.players) >= session.max_players:
-        await websocket.close(code=4003, reason="Session is full")
+    if session.is_full:
+        await websocket.close(code=WS_SESSION_FULL, reason="Session is full")
         return
     
-    # Accept connection
+    # Accept connection and create player
     await websocket.accept()
+    player = session_manager.create_player(player_name)
+    session_manager.add_player_to_session(session_id, player, websocket)
     
-    # Create player
-    player_id = str(uuid.uuid4())[:8]
-    player = Player(
-        id=player_id,
-        name=player_name,
-        joined_at=datetime.now().isoformat()
-    )
-    
-    # Add player to session
-    session.players.append(player)
-    active_connections[session_id][player_id] = websocket
-    
-    # Update session status
-    if len(session.players) == session.max_players:
-        session.status = "ready"
-    
-    # Notify all players in the session
-    await broadcast_to_session(session_id, {
-        "type": "player_joined",
+    # Notify all players
+    await session_manager.broadcast(session_id, {
+        "type": MessageType.PLAYER_JOINED,
         "player": sanitize_player(player),
-        "player_id": player_id,  # Send player_id to the joining player
+        "player_id": player.id,
         "session": sanitize_session(session)
     })
     
     try:
-        while True:
-            # Receive messages from client
-            data = await websocket.receive_text()
-            message = json.loads(data)
-            
-            # Handle different message types
-            if message.get("type") == "lock_number":
-                number = message.get("number", "")
-                
-                # Validate number
-                if not validate_number(number):
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": "Invalid number. Must be 4 unique digits."
-                    })
-                    continue
-                
-                # Lock the player's secret number
-                for p in session.players:
-                    if p.id == player_id:
-                        p.secret_number = number
-                        p.is_ready = True
-                        break
-                
-                # Check if both players are ready
-                if all(p.is_ready for p in session.players):
-                    session.status = "in_progress"
-                    # Set first player's turn (player who joined first)
-                    session.current_turn = session.players[0].id
-                
-                await broadcast_to_session(session_id, {
-                    "type": "number_locked",
-                    "player_id": player_id,
-                    "session": sanitize_session(session)
-                })
-            
-            elif message.get("type") == "make_guess":
-                guess_number = message.get("guess", "")
-                
-                # Validate it's the player's turn
-                if session.current_turn != player_id:
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": "It's not your turn!"
-                    })
-                    continue
-                
-                # Validate guess
-                if not validate_number(guess_number):
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": "Invalid guess. Must be 4 unique digits."
-                    })
-                    continue
-                
-                # Find opponent
-                opponent = None
-                for p in session.players:
-                    if p.id != player_id:
-                        opponent = p
-                        break
-                
-                if not opponent or not opponent.secret_number:
-                    continue
-                
-                # Evaluate guess
-                correct_digits, correct_positions = evaluate_guess(
-                    guess_number, 
-                    opponent.secret_number
-                )
-                
-                # Create guess record
-                guess = Guess(
-                    player_id=player_id,
-                    player_name=player_name,
-                    guess=guess_number,
-                    correct_digits=correct_digits,
-                    correct_positions=correct_positions,
-                    timestamp=datetime.now().isoformat()
-                )
-                
-                session.guesses.append(guess)
-                
-                # Check if player won
-                if correct_positions == 4:
-                    session.status = "completed"
-                    session.winner = player_id
-                else:
-                    # Switch turns
-                    session.current_turn = opponent.id
-                
-                # Broadcast guess to all players
-                await broadcast_to_session(session_id, {
-                    "type": "guess_made",
-                    "guess": guess.dict(),
-                    "session": sanitize_session(session)
-                })
-            
-            elif message.get("type") == "chat":
-                await broadcast_to_session(session_id, {
-                    "type": "chat",
-                    "player_id": player_id,
-                    "player_name": player_name,
-                    "message": message.get("message")
-                })
-    
+        await handle_websocket_messages(websocket, session_id, player.id, player_name)
     except WebSocketDisconnect:
-        # Remove player from session
-        session.players = [p for p in session.players if p.id != player_id]
+        await handle_player_disconnect(session_id, player.id, player_name)
+
+
+async def handle_websocket_messages(
+    websocket: WebSocket, 
+    session_id: str, 
+    player_id: str, 
+    player_name: str
+):
+    """Handle incoming WebSocket messages."""
+    while True:
+        data = await websocket.receive_text()
+        message = json.loads(data)
+        message_type = message.get("type")
         
-        # Safely remove from active connections
-        if session_id in active_connections and player_id in active_connections[session_id]:
-            del active_connections[session_id][player_id]
+        session = session_manager.get_session(session_id)
+        if not session:
+            break
         
-        # Update session status
-        if len(session.players) < session.max_players:
-            session.status = "waiting"
+        if message_type == MessageType.LOCK_NUMBER:
+            await handle_lock_number(websocket, session, player_id, message)
         
-        # Notify remaining players
-        await broadcast_to_session(session_id, {
-            "type": "player_left",
+        elif message_type == MessageType.MAKE_GUESS:
+            await handle_make_guess(
+                websocket, session, session_id, 
+                player_id, player_name, message
+            )
+        
+        elif message_type == MessageType.CHAT:
+            await session_manager.broadcast(session_id, {
+                "type": MessageType.CHAT,
+                "player_id": player_id,
+                "player_name": player_name,
+                "message": message.get("message")
+            })
+
+
+async def handle_lock_number(
+    websocket: WebSocket, 
+    session, 
+    player_id: str, 
+    message: dict
+):
+    """Handle player locking their secret number."""
+    number = message.get("number", "")
+    
+    if not validate_number(number):
+        await websocket.send_json({
+            "type": MessageType.ERROR,
+            "message": "Invalid number. Must be 4 unique digits."
+        })
+        return
+    
+    # Lock the player's secret number
+    player = session.get_player(player_id)
+    if player:
+        player.secret_number = number
+        player.is_ready = True
+    
+    # Check if both players are ready
+    if session.all_players_ready:
+        session.status = GameStatus.IN_PROGRESS
+        session.current_turn = session.players[0].id
+    
+    await session_manager.broadcast(session.session_id, {
+        "type": MessageType.NUMBER_LOCKED,
+        "player_id": player_id,
+        "session": sanitize_session(session)
+    })
+
+
+async def handle_make_guess(
+    websocket: WebSocket,
+    session,
+    session_id: str,
+    player_id: str,
+    player_name: str,
+    message: dict
+):
+    """Handle player making a guess."""
+    guess_number = message.get("guess", "")
+    
+    # Validate turn
+    if session.current_turn != player_id:
+        await websocket.send_json({
+            "type": MessageType.ERROR,
+            "message": "It's not your turn!"
+        })
+        return
+    
+    # Validate guess format
+    if not validate_number(guess_number):
+        await websocket.send_json({
+            "type": MessageType.ERROR,
+            "message": "Invalid guess. Must be 4 unique digits."
+        })
+        return
+    
+    # Get opponent
+    opponent = session.get_opponent(player_id)
+    if not opponent or not opponent.secret_number:
+        return
+    
+    # Evaluate guess
+    correct_digits, correct_positions = evaluate_guess(
+        guess_number, 
+        opponent.secret_number
+    )
+    
+    # Create guess record
+    guess = Guess.create(
+        player_id=player_id,
+        player_name=player_name,
+        guess=guess_number,
+        correct_digits=correct_digits,
+        correct_positions=correct_positions
+    )
+    
+    session.guesses.append(guess)
+    
+    # Check for winner
+    if is_winning_guess(correct_positions):
+        session.status = GameStatus.COMPLETED
+        session.winner = player_id
+    else:
+        session.current_turn = opponent.id
+    
+    await session_manager.broadcast(session_id, {
+        "type": MessageType.GUESS_MADE,
+        "guess": guess.model_dump(),
+        "session": sanitize_session(session)
+    })
+
+
+async def handle_player_disconnect(
+    session_id: str, 
+    player_id: str, 
+    player_name: str
+):
+    """Handle player disconnection."""
+    session = session_manager.get_session(session_id)
+    session_manager.remove_player_from_session(session_id, player_id)
+    
+    if session and session.players:
+        await session_manager.broadcast(session_id, {
+            "type": MessageType.PLAYER_LEFT,
             "player_id": player_id,
             "player_name": player_name,
             "session": sanitize_session(session)
         })
-        
-        # Clean up empty sessions
-        if len(session.players) == 0:
-            if session_id in sessions:
-                del sessions[session_id]
-            if session_id in active_connections:
-                del active_connections[session_id]
 
-def validate_number(number: str) -> bool:
-    """Validate that number is 4 digits with unique digits"""
-    if not number or len(number) != 4:
-        return False
-    if not number.isdigit():
-        return False
-    # Check all digits are unique
-    if len(set(number)) != 4:
-        return False
-    return True
-
-def evaluate_guess(guess: str, secret: str) -> tuple:
-    """
-    Evaluate a guess against the secret number.
-    Returns (correct_digits, correct_positions)
-    """
-    correct_positions = sum(1 for i in range(4) if guess[i] == secret[i])
-    correct_digits = len(set(guess) & set(secret))
-    
-    return correct_digits, correct_positions
-
-def sanitize_player(player: Player) -> dict:
-    """Return player dict without secret number"""
-    p_dict = player.dict()
-    p_dict.pop('secret_number', None)
-    return p_dict
-
-def sanitize_session(session: GameSession) -> dict:
-    """Return session dict with sanitized players (no secret numbers)"""
-    session_dict = session.dict()
-    session_dict['players'] = [sanitize_player(p) for p in session.players]
-    return session_dict
-
-async def broadcast_to_session(session_id: str, message: dict):
-    """Broadcast message to all players in a session"""
-    if session_id not in active_connections:
-        return
-    
-    disconnected = []
-    for player_id, websocket in active_connections[session_id].items():
-        try:
-            await websocket.send_json(message)
-        except Exception:
-            disconnected.append(player_id)
-    
-    # Clean up disconnected websockets
-    for player_id in disconnected:
-        if player_id in active_connections[session_id]:
-            del active_connections[session_id][player_id]
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    import uvicorn
+    uvicorn.run("main:app", host=HOST, port=PORT, reload=True)

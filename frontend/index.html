@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A 2-player 4-digit number guessing game">
     <title>4-Digit Number Guessing Game</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
+    <main class="container" role="main">
         <!-- Welcome Screen -->
-        <div id="welcomeScreen" class="screen active">
-            <div class="card">
+        <section id="welcomeScreen" class="screen active" aria-label="Welcome">
+            <article class="card">
                 <h1>🎯 4-Digit Number Game</h1>
                 <p class="subtitle">Guess your opponent's 4-digit secret number!</p>
                 
-                <div class="rules-box">
-                    <h3>Game Rules:</h3>
+                <div class="rules-box" role="region" aria-label="Game Rules">
+                    <h2>Game Rules:</h2>
                     <ul>
                         <li>Each player chooses a 4-digit number with unique digits</li>
                         <li>Take turns guessing the opponent's number</li>
@@ -25,19 +26,19 @@
                 </div>
                 
                 <div class="button-group">
-                    <button class="btn btn-primary" onclick="showCreateSession()">
+                    <button type="button" class="btn btn-primary" onclick="showCreateSession()" aria-label="Create a new game session">
                         Create New Session
                     </button>
-                    <button class="btn btn-secondary" onclick="showJoinSession()">
+                    <button type="button" class="btn btn-secondary" onclick="showJoinSession()" aria-label="Join an existing game session">
                         Join Existing Session
                     </button>
                 </div>
-            </div>
-        </div>
+            </article>
+        </section>
 
         <!-- Create Session Screen -->
-        <div id="createScreen" class="screen">
-            <div class="card">
+        <section id="createScreen" class="screen" aria-label="Create Session">
+            <article class="card">
                 <h2>Create New Session</h2>
                 <p class="subtitle">Enter your name to create a game session</p>
                 
@@ -48,25 +49,27 @@
                         id="createPlayerName" 
                         placeholder="Enter your name"
                         maxlength="20"
-                    />
+                        autocomplete="name"
+                        aria-required="true"
+                    >
                 </div>
                 
                 <div class="button-group">
-                    <button class="btn btn-primary" onclick="createSession()">
+                    <button type="button" class="btn btn-primary" onclick="createSession()">
                         Create Session
                     </button>
-                    <button class="btn btn-secondary" onclick="showWelcome()">
+                    <button type="button" class="btn btn-secondary" onclick="showWelcome()">
                         Back
                     </button>
                 </div>
                 
-                <div id="createError" class="error-message"></div>
-            </div>
-        </div>
+                <div id="createError" class="error-message" role="alert" aria-live="polite"></div>
+            </article>
+        </section>
 
         <!-- Join Session Screen -->
-        <div id="joinScreen" class="screen">
-            <div class="card">
+        <section id="joinScreen" class="screen" aria-label="Join Session">
+            <article class="card">
                 <h2>Join Session</h2>
                 <p class="subtitle">Enter session ID and your name</p>
                 
@@ -77,7 +80,9 @@
                         id="sessionId" 
                         placeholder="Enter session ID"
                         maxlength="8"
-                    />
+                        autocomplete="off"
+                        aria-required="true"
+                    >
                 </div>
                 
                 <div class="form-group">
@@ -87,172 +92,193 @@
                         id="joinPlayerName" 
                         placeholder="Enter your name"
                         maxlength="20"
-                    />
+                        autocomplete="name"
+                        aria-required="true"
+                    >
                 </div>
                 
                 <div class="button-group">
-                    <button class="btn btn-primary" onclick="joinSession()">
+                    <button type="button" class="btn btn-primary" onclick="joinSession()">
                         Join Session
                     </button>
-                    <button class="btn btn-secondary" onclick="showWelcome()">
+                    <button type="button" class="btn btn-secondary" onclick="showWelcome()">
                         Back
                     </button>
                 </div>
                 
-                <div id="joinError" class="error-message"></div>
-            </div>
-        </div>
+                <div id="joinError" class="error-message" role="alert" aria-live="polite"></div>
+            </article>
+        </section>
 
         <!-- Lobby Screen -->
-        <div id="lobbyScreen" class="screen">
-            <div class="card">
+        <section id="lobbyScreen" class="screen" aria-label="Game Lobby">
+            <article class="card">
                 <h2>Game Lobby</h2>
                 
-                <div class="session-info">
+                <div class="session-info" role="region" aria-label="Session Information">
                     <div class="info-item">
                         <span class="label">Session ID:</span>
-                        <span id="lobbySessionId" class="session-id"></span>
-                        <button class="btn-copy" onclick="copySessionId()">📋 Copy</button>
+                        <span id="lobbySessionId" class="session-id" aria-label="Session identifier"></span>
+                        <button type="button" class="btn-copy" onclick="copySessionId()" aria-label="Copy session ID to clipboard">📋 Copy</button>
                     </div>
                     <div class="info-item">
                         <span class="label">Status:</span>
-                        <span id="lobbyStatus" class="status-badge">Waiting</span>
+                        <span id="lobbyStatus" class="status-badge" aria-live="polite">Waiting</span>
                     </div>
                 </div>
                 
-                <div class="players-section">
+                <div class="players-section" role="region" aria-label="Players">
                     <h3>Players (<span id="playerCount">0</span>/2)</h3>
-                    <div id="playersList" class="players-list"></div>
+                    <div id="playersList" class="players-list" role="list" aria-label="Connected players"></div>
                 </div>
                 
-                <div class="waiting-message" id="waitingMessage">
-                    <div class="spinner"></div>
+                <div class="waiting-message" id="waitingMessage" aria-live="polite">
+                    <div class="spinner" role="status" aria-label="Loading"></div>
                     <p>Waiting for another player to join...</p>
                     <p class="share-text">Share the Session ID with your friend!</p>
                 </div>
                 
                 <div class="button-group">
                     <button 
+                        type="button"
                         id="readyToPlayBtn" 
                         class="btn btn-primary" 
                         onclick="showNumberSelection()"
                         disabled
+                        aria-disabled="true"
                     >
                         Ready to Play
                     </button>
-                    <button class="btn btn-danger" onclick="leaveSession()">
+                    <button type="button" class="btn btn-danger" onclick="leaveSession()">
                         Leave Session
                     </button>
                 </div>
                 
-                <div id="lobbyError" class="error-message"></div>
-            </div>
-        </div>
+                <div id="lobbyError" class="error-message" role="alert" aria-live="polite"></div>
+            </article>
+        </section>
 
         <!-- Number Selection Screen -->
-        <div id="numberSelectionScreen" class="screen">
-            <div class="card">
+        <section id="numberSelectionScreen" class="screen" aria-label="Choose Secret Number">
+            <article class="card">
                 <h2>🔐 Choose Your Secret Number</h2>
                 <p class="subtitle">Enter a 4-digit number with unique digits</p>
                 
                 <div class="number-input-section">
-                    <div class="digit-inputs">
-                        <input type="text" class="digit-input" id="digit1" maxlength="1" onkeyup="moveToNext(this, 'digit2')" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-                        <input type="text" class="digit-input" id="digit2" maxlength="1" onkeyup="moveToNext(this, 'digit3')" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-                        <input type="text" class="digit-input" id="digit3" maxlength="1" onkeyup="moveToNext(this, 'digit4')" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-                        <input type="text" class="digit-input" id="digit4" maxlength="1" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-                    </div>
-                    <p class="hint-text">⚠️ All digits must be different!</p>
+                    <fieldset class="digit-inputs" aria-label="Secret number digits">
+                        <legend class="visually-hidden">Enter 4 unique digits</legend>
+                        <input type="text" inputmode="numeric" class="digit-input" id="digit1" maxlength="1" 
+                               onkeyup="moveToNext(this, 'digit2')" oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                               aria-label="First digit">
+                        <input type="text" inputmode="numeric" class="digit-input" id="digit2" maxlength="1" 
+                               onkeyup="moveToNext(this, 'digit3')" oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                               aria-label="Second digit">
+                        <input type="text" inputmode="numeric" class="digit-input" id="digit3" maxlength="1" 
+                               onkeyup="moveToNext(this, 'digit4')" oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                               aria-label="Third digit">
+                        <input type="text" inputmode="numeric" class="digit-input" id="digit4" maxlength="1" 
+                               oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                               aria-label="Fourth digit">
+                    </fieldset>
+                    <p class="hint-text" role="note">⚠️ All digits must be different!</p>
                 </div>
                 
                 <div class="button-group">
-                    <button class="btn btn-primary" onclick="lockNumber()">
+                    <button type="button" class="btn btn-primary" onclick="lockNumber()">
                         🔒 Lock Number
                     </button>
                 </div>
                 
-                <div id="numberError" class="error-message"></div>
+                <div id="numberError" class="error-message" role="alert" aria-live="polite"></div>
                 
-                <div class="waiting-box" id="waitingForOpponent" style="display: none;">
-                    <div class="spinner"></div>
+                <div class="waiting-box" id="waitingForOpponent" style="display: none;" aria-live="polite">
+                    <div class="spinner" role="status" aria-label="Waiting"></div>
                     <p>Waiting for opponent to lock their number...</p>
                 </div>
-            </div>
-        </div>
+            </article>
+        </section>
 
         <!-- Game Screen -->
-        <div id="gameScreen" class="screen">
-            <div class="card game-card">
-                <div class="game-header">
+        <section id="gameScreen" class="screen" aria-label="Game Play">
+            <article class="card game-card">
+                <header class="game-header">
                     <h2>🎯 Guess the Number!</h2>
                     <div class="session-id-small">
                         Session: <span id="gameSessionId"></span>
                     </div>
-                </div>
+                </header>
                 
-                <div class="turn-indicator" id="turnIndicator">
+                <div class="turn-indicator" id="turnIndicator" role="status" aria-live="polite">
                     <span id="turnText">Your Turn!</span>
                 </div>
                 
-                <div class="game-stats">
+                <div class="game-stats" role="region" aria-label="Game Statistics">
                     <div class="stat-box">
                         <div class="stat-label">Your Guesses</div>
-                        <div class="stat-value" id="yourGuessCount">0</div>
+                        <div class="stat-value" id="yourGuessCount" aria-label="Your guess count">0</div>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">Opponent's Guesses</div>
-                        <div class="stat-value" id="opponentGuessCount">0</div>
+                        <div class="stat-value" id="opponentGuessCount" aria-label="Opponent guess count">0</div>
                     </div>
                 </div>
                 
                 <div class="guess-input-section" id="guessInputSection">
                     <h3>Make Your Guess</h3>
-                    <div class="digit-inputs">
-                        <input type="text" class="digit-input" id="guess1" maxlength="1" onkeyup="moveToNext(this, 'guess2')" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-                        <input type="text" class="digit-input" id="guess2" maxlength="1" onkeyup="moveToNext(this, 'guess3')" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-                        <input type="text" class="digit-input" id="guess3" maxlength="1" onkeyup="moveToNext(this, 'guess4')" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-                        <input type="text" class="digit-input" id="guess4" maxlength="1" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-                    </div>
-                    <button class="btn btn-primary" onclick="makeGuess()">Submit Guess</button>
+                    <fieldset class="digit-inputs" aria-label="Guess digits">
+                        <legend class="visually-hidden">Enter your guess</legend>
+                        <input type="text" inputmode="numeric" class="digit-input" id="guess1" maxlength="1" 
+                               onkeyup="moveToNext(this, 'guess2')" oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                               aria-label="First guess digit">
+                        <input type="text" inputmode="numeric" class="digit-input" id="guess2" maxlength="1" 
+                               onkeyup="moveToNext(this, 'guess3')" oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                               aria-label="Second guess digit">
+                        <input type="text" inputmode="numeric" class="digit-input" id="guess3" maxlength="1" 
+                               onkeyup="moveToNext(this, 'guess4')" oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                               aria-label="Third guess digit">
+                        <input type="text" inputmode="numeric" class="digit-input" id="guess4" maxlength="1" 
+                               oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                               aria-label="Fourth guess digit">
+                    </fieldset>
+                    <button type="button" class="btn btn-primary" onclick="makeGuess()">Submit Guess</button>
                 </div>
                 
-                <div class="game-history">
+                <div class="game-history" role="region" aria-label="Guess History">
                     <div class="history-column">
                         <h3>Your Guesses</h3>
-                        <div id="yourGuesses" class="guess-list"></div>
+                        <div id="yourGuesses" class="guess-list" role="log" aria-label="Your guess history"></div>
                     </div>
                     <div class="history-column">
                         <h3>Opponent's Guesses</h3>
-                        <div id="opponentGuesses" class="guess-list"></div>
+                        <div id="opponentGuesses" class="guess-list" role="log" aria-label="Opponent guess history"></div>
                     </div>
                 </div>
                 
-                <div id="gameError" class="error-message"></div>
+                <div id="gameError" class="error-message" role="alert" aria-live="polite"></div>
                 
-                <button class="btn btn-danger btn-small" onclick="leaveSession()">
+                <button type="button" class="btn btn-danger btn-small" onclick="leaveSession()">
                     Leave Game
                 </button>
-            </div>
-        </div>
+            </article>
+        </section>
 
         <!-- Winner Screen -->
-        <div id="winnerScreen" class="screen">
-            <div class="card">
-                <div class="winner-content">
-                    <h1 id="winnerTitle">🏆</h1>
+        <section id="winnerScreen" class="screen" aria-label="Game Result">
+            <article class="card">
+                <div class="winner-content" role="region" aria-label="Winner Announcement">
+                    <h1 id="winnerTitle" aria-live="assertive">🏆</h1>
                     <p id="winnerMessage" class="winner-message"></p>
-                    <div id="finalStats" class="final-stats"></div>
+                    <div id="finalStats" class="final-stats" role="region" aria-label="Final Statistics"></div>
                 </div>
                 <div class="button-group">
-                    <button class="btn btn-primary" onclick="showWelcome()">
+                    <button type="button" class="btn btn-primary" onclick="showWelcome()">
                         New Game
                     </button>
                 </div>
-            </div>
-        </div>
-    </div>
+            </article>
+        </section>
+    </main>
 
     <script src="script.js"></script>
 </body>
 </html>
-
