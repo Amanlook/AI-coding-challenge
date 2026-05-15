@@ -4,12 +4,12 @@ A real-time multiplayer game session manager built with FastAPI backend and nati
 
 ## Features
 
-- 🎮 Create new game sessions with unique session IDs
-- 👥 Join existing sessions (max 2 players per session)
-- 🔄 Real-time updates using WebSockets
-- 📋 Copy session ID to clipboard
-- 🎯 Player lobby with status indicators
-- 🚀 Fast and responsive native UI
+-  Create new game sessions with unique session IDs
+-  Join existing sessions (max 2 players per session)
+-  Real-time updates using WebSockets
+-  Copy session ID to clipboard
+-  Player lobby with status indicators
+-  Fast and responsive native UI
 
 ## Tech Stack
 
